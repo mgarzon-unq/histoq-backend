@@ -130,7 +130,7 @@ public class ImageController {
         FileFormat fileFormat = om.readValue(pFileFormat, FileFormat.class);
         response.setContentType(fileFormat.getContentType());
         response.setHeader(HttpHeaders.CONTENT_DISPOSITION,
-                    "attachment; file=TissueScan-Data." + fileFormat.getExtension() );
+                    "attachment; file=HistoQ-Data." + fileFormat.getExtension() );
         imageService.exportImageBatchesData(imageBatchesIds, fileFormat, response.getWriter());
     }
 
