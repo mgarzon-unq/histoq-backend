@@ -7,38 +7,40 @@ import ar.edu.unq.lom.histoq.backend.repository.image.ImageRepository;
 import ar.edu.unq.lom.histoq.backend.repository.image.exception.ImageBatchNotFoundException;
 import ar.edu.unq.lom.histoq.backend.repository.image.exception.ImageFileNotFoundException;
 import ar.edu.unq.lom.histoq.backend.repository.image.exception.ImageNotFoundException;
-import ar.edu.unq.lom.histoq.backend.service.context.TissueScanAppContext;
+import ar.edu.unq.lom.histoq.backend.service.context.HistoQAppContext;
 import ar.edu.unq.lom.histoq.backend.service.dataexport.DataExporter;
 import ar.edu.unq.lom.histoq.backend.service.dataexport.DataExporterFactory;
+import ar.edu.unq.lom.histoq.backend.service.files.FileStorageInfo;
+import ar.edu.unq.lom.histoq.backend.service.files.FileStorageServiceManager;
 import ar.edu.unq.lom.histoq.backend.service.securiy.BaseServiceWithSecurity;
 import ar.edu.unq.lom.histoq.backend.service.securiy.SecurityService;
 import ar.edu.unq.lom.histoq.backend.service.files.FileFormat;
-import ar.edu.unq.lom.histoq.backend.service.files.FileStorageService;
-import org.springframework.core.io.Resource;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 import javax.transaction.Transactional;
+import java.io.OutputStream;
 import java.io.PrintWriter;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
 @Service
 public class ImageService extends BaseServiceWithSecurity {
 
-    private final FileStorageService imageFileService;
+    private final FileStorageServiceManager fileStorageServiceManager;
     private final ImageBatchRepository imageBatchRepository;
     private final ImageRepository imageRepository;
     private final ImageFileRepository imageFileRepository;
     private ImageScanner imageScanner;
 
-    ImageService(FileStorageService imageFileService,
+    ImageService(FileStorageServiceManager fileStorageServiceManager,
                  ImageBatchRepository imageBatchRepository,
                  ImageFileRepository imageFileRepository,
                  ImageRepository imageRepository,
                  SecurityService securityService) {
         super(securityService);
-        this.imageFileService = imageFileService;
+        this.fileStorageServiceManager = fileStorageServiceManager;
         this.imageBatchRepository = imageBatchRepository;
         this.imageFileRepository = imageFileRepository;
         this.imageRepository = imageRepository;
@@ -68,6 +70,12 @@ public class ImageService extends BaseServiceWithSecurity {
         return imageBatchRepository.findAllByUserId(getLoggedUser().getId());
     }
 
+    public List<ImageFile> findAllUploadedImageFiles(Long batchId) {
+        userAccessControl(null);
+        return findImageBatchById(batchId)
+                .getUploadedImageFiles();
+    }
+
     public List<ImageFile> findAllImageFiles(Long batchId) {
         userAccessControl(null);
         return findImageBatchById(batchId)
@@ -89,7 +97,6 @@ public class ImageService extends BaseServiceWithSecurity {
     public ImageBatch saveImageBatch(ImageBatch imageBatch) {
         userAccessControl(null);
         ImageBatch newBatch = this.imageBatchRepository.save(imageBatch);
-        imageFileService.createFolder(newBatch.getId().toString());
         return newBatch;
     }
 
@@ -98,43 +105,60 @@ public class ImageService extends BaseServiceWithSecurity {
         userAccessControl(null);
         ImageBatch imageBatch = findImageBatchById(batchId);
 
-        // upload file...
-        String localPath = this.imageFileService.uploadFile(batchId.toString(), file);
-
         ImageFile imageFile = new ImageFile();
         imageFile.setBatch(imageBatch);
         imageFile.setName(file.getOriginalFilename());
+        FileStorageInfo storageInfo = this.fileStorageServiceManager.uploadFile(batchId.toString(), file);
+        imageFile.setStorage(storageInfo.getStorage());
+        imageFile.setIdInStorage(storageInfo.getIdInStorage());
 
-        imageBatch.getImageFiles().add(imageFile);
+        imageBatch.addImageFile(imageFile);
 
         this.imageBatchRepository.save(imageBatch);
 
         return imageFile;
     }
 
-    public Resource downLoadImageFile(Long imageFileId) {
+    public ImageFile downLoadImageFile(Long imageFileId, OutputStream outputStream) {
         userAccessControl(null);
         ImageFile imageFile = findImageFileById(imageFileId);
-        String batchFolder  = imageFile.getBatch().getId().toString();
-        return this.imageFileService.downloadFile( batchFolder, imageFile.getName() );
+        this.fileStorageServiceManager.downloadFile(
+                imageFile.getStorage(),
+                imageFile.getIdInStorage(),
+                outputStream );
+        return imageFile;
     }
 
-    public Resource downLoadImage(Long imageId) {
+    public Image downLoadImage(Long imageId, OutputStream outputStream) {
         userAccessControl(null);
         Image image = this.imageRepository.findById(imageId)
                         .orElseThrow(() -> new ImageNotFoundException("repository.image-not-found",
                                         new String[]{imageId.toString()})
                         );
-        String batchFolder = image.getFiles().get(0).getBatch().getId().toString();
-        return this.imageFileService.downloadFile( batchFolder, image.getName() );
+        ImageFile imageFile = image.getMainImageFile();
+        this.fileStorageServiceManager.downloadFile(
+                imageFile.getStorage(),
+                imageFile.getIdInStorage(),
+                outputStream );
+        return image;
     }
 
     @Transactional
     public List<Image> processImageBatch(Long batchId) {
         userAccessControl(null);
+
         ImageBatch imageBatch = findImageBatchById(batchId);
+
+        removeImageBatchGeneratedFilesInStorage(imageBatch);
+
+        copyImageBatchFilesToLocalFileStorage(imageBatch);
+
         imageBatch.process(getImageScanner());
+
+        sendToFileStorageImageBatchGeneratedFile(imageBatch);
+
         this.imageBatchRepository.save(imageBatch);
+
         return findAllImages(batchId);
     }
 
@@ -153,7 +177,7 @@ public class ImageService extends BaseServiceWithSecurity {
     public void deleteImageBatchById(Long batchId) {
         userAccessControl(null);
         ImageBatch imageBatch = findImageBatchById(batchId);
-        this.imageFileService.deleteFolder(batchId.toString());
+        removeImageBatchAllFilesInStorage(imageBatch);
         this.imageBatchRepository.deleteById(batchId);
     }
 
@@ -161,8 +185,7 @@ public class ImageService extends BaseServiceWithSecurity {
     public void deleteImageFile(Long imageFileId) {
         userAccessControl(null);
         ImageFile imageFile = findImageFileById(imageFileId);
-        String batchFolder  = imageFile.getBatch().getId().toString();
-        this.imageFileService.deleteFile(batchFolder + "/" + imageFile.getName() );
+        removeImageFileInStorage(imageFile);
         this.imageFileRepository.deleteById(imageFileId);
     }
 
@@ -171,16 +194,24 @@ public class ImageService extends BaseServiceWithSecurity {
         userAccessControl(null);
         ImageFile imageFile = findImageFileById(imageFileChanges.getId());
         // only customized parameters changes are allowed...
-        imageFile.setCustomProcessingParameters(imageFileChanges.getCustomProcessingParameters());
+        imageFile.updateCustomProcessingParameters(imageFileChanges.getCustomProcessingParameters());
         return this.imageFileRepository.save(imageFile);
     }
 
-    public Resource downLoadImagePreview(Long fileId) {
+    public Image downLoadImagePreview(Long fileId, OutputStream outputStream) {
         userAccessControl(null);
+
         ImageFile imageFile = findImageFileById(fileId);
+
+        copyImageFileToLocalFileStorage(imageFile);
+
         Image imagePreview = getImageScanner().previewProcessedImageFile(imageFile);
-        String batchFolder = imageFile.getBatch().getId().toString();
-        return this.imageFileService.downloadFile( batchFolder, imagePreview.getName() );
+
+        this.fileStorageServiceManager.downloadLocalFile(
+                imageFile.getBatch().getId().toString()+"/"+imagePreview.getName(),
+                outputStream );
+
+        return imagePreview;
     }
 
     public Map<String,String> findAllDefaultProcessingParameters() {
@@ -189,8 +220,63 @@ public class ImageService extends BaseServiceWithSecurity {
     }
 
     private ImageScanner getImageScanner() {
-        if( this.imageScanner == null ) this.imageScanner = TissueScanAppContext.getBean(TissueScanner.class);
+        if( this.imageScanner == null ) this.imageScanner = HistoQAppContext.getBean(TissueScanner.class);
         return this.imageScanner;
     }
+
+    private void removeImageBatchAllFilesInStorage(ImageBatch imageBath) {
+        imageBath.getImageFiles().forEach( imageFile -> {
+            removeImageFileInStorage(imageFile);
+        });
+    }
+
+    private void removeImageBatchGeneratedFilesInStorage(ImageBatch imageBath) {
+        removeImageBatchAnyFilesInStorage(imageBath,ImageFile::isGenerated);
+    }
+
+    private void removeImageBatchAnyFilesInStorage(ImageBatch imageBath, Predicate<ImageFile> predicate) {
+        imageBath.getImageFiles().stream().filter(predicate).forEach( imageFile -> {
+            removeImageFileInStorage(imageFile);
+        });
+    }
+
+    private void removeImageFileInStorage(ImageFile imageFile) {
+        this.fileStorageServiceManager.deleteFile(
+                imageFile.getStorage(),
+                imageFile.getIdInStorage() );
+    }
+
+    private void copyImageBatchFilesToLocalFileStorage(ImageBatch imageBath) {
+        for (ImageFile imageFile : imageBath.getImageFiles()) {
+            copyImageFileToLocalFileStorage(imageFile);
+        }
+    }
+
+    private void copyImageFileToLocalFileStorage(ImageFile imageFile) {
+        try {
+            this.fileStorageServiceManager.copyFileToLocalStorage(
+                    imageFile.getStorage(),
+                    imageFile.getIdInStorage(),
+                    imageFile.getBatch().getId().toString(),
+                    imageFile.getName() );
+        } catch (Exception e) {
+            throw new ImageNotFoundException("image.file-processing-error",
+                    new String[]{imageFile.getName(),e.getMessage()});
+        }
+    }
+
+    private void sendToFileStorageImageBatchGeneratedFile(ImageBatch imageBatch) {
+        imageBatch.getImageFiles()
+                .stream()
+                .filter(ImageFile::isGenerated)
+                .forEach(file -> {
+                    String folderName = imageBatch.getId().toString();
+                    FileStorageInfo storageInfo = this.fileStorageServiceManager
+                            .copyLocalFileToRemoteStorage(folderName,file.getName());
+                    file.setStorage(storageInfo.getStorage());
+                    file.setIdInStorage(storageInfo.getIdInStorage());
+                });
+    }
+
 
 }

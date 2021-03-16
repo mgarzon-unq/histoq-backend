@@ -17,8 +17,7 @@ public class Protocol {
     private String title;
     private Date date;
 
-    @OneToMany(cascade=CascadeType.ALL)
-    @JoinColumn(name="protocol_id")
+    @OneToMany(cascade=CascadeType.ALL,mappedBy="protocol")
     private List<ExperimentalGroup> experimentalGroups;
 
     public Protocol() {}
@@ -33,5 +32,11 @@ public class Protocol {
         if(this.experimentalGroups==null)
             this.experimentalGroups=new ArrayList<ExperimentalGroup>();
         this.experimentalGroups.add(group);
+        group.setProtocol(this);
+    }
+
+    public void removeExperimentalGroup(ExperimentalGroup group) {
+        this.experimentalGroups.remove(group);
+        group.setProtocol(null);
     }
 }

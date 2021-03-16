@@ -7,7 +7,8 @@ import ar.edu.unq.lom.histoq.backend.repository.image.ImageBatchRepository;
 import ar.edu.unq.lom.histoq.backend.repository.image.ImageFileRepository;
 import ar.edu.unq.lom.histoq.backend.repository.image.ImageRepository;
 import ar.edu.unq.lom.histoq.backend.service.files.FileFormat;
-import ar.edu.unq.lom.histoq.backend.service.files.ImageFileService;
+import ar.edu.unq.lom.histoq.backend.service.files.FileStorageInfo;
+import ar.edu.unq.lom.histoq.backend.service.files.FileStorageServiceManager;
 import ar.edu.unq.lom.histoq.backend.service.securiy.SecurityService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -30,7 +31,9 @@ public class ImageServiceTests {
     private ImageService imageService ;
 
     @Mock
-    private ImageFileService imageFileService;
+    private FileStorageInfo storageInfo;
+    @Mock
+    private FileStorageServiceManager fileStorageServiceManager;
     @Mock
     private ImageBatchRepository imageBatchRepository;
     @Mock
@@ -45,7 +48,7 @@ public class ImageServiceTests {
 
     @BeforeEach
     public void setUp() {
-        this.imageService = new ImageService(this.imageFileService,
+        this.imageService = new ImageService(this.fileStorageServiceManager,
                 this.imageBatchRepository,
                 this.imageFileRepository,
                 this.imageRepository,
@@ -78,7 +81,7 @@ public class ImageServiceTests {
         List<ImageFile> imageFiles = new ArrayList<>();
 
         when(file.getOriginalFilename()).thenReturn(fileName);
-        when(this.imageFileService.uploadFile(this.batchId.toString(),file)).thenReturn(fileName);
+        when(this.fileStorageServiceManager.uploadFile(this.batchId.toString(),file)).thenReturn(this.storageInfo);
         when(this.imageBatch.getImageFiles()).thenReturn(imageFiles);
 
         ImageFile imageFile = this.imageService.uploadImageFile(this.batchId,file);
@@ -87,7 +90,7 @@ public class ImageServiceTests {
         assertEquals(this.imageBatch,imageFile.getBatch());
         assertEquals(imageFile,imageFiles.get(0));
 
-        verify(this.imageFileService,times(1)).uploadFile(this.batchId.toString(),file);
+        verify(this.fileStorageServiceManager,times(1)).uploadFile(this.batchId.toString(),file);
         verify(this.imageBatchRepository,times(1)).save(this.imageBatch);
     }
 

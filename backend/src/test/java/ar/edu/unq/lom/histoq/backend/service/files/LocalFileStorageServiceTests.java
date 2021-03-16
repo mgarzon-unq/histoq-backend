@@ -1,6 +1,7 @@
 package ar.edu.unq.lom.histoq.backend.service.files;
 
 
+import ar.edu.unq.lom.histoq.backend.model.storage.FileStorage;
 import ar.edu.unq.lom.histoq.backend.service.config.ApplicationConfigProperties;
 import ar.edu.unq.lom.histoq.backend.service.files.exception.ImageFileUploadException;
 import org.junit.jupiter.api.BeforeEach;
@@ -18,9 +19,9 @@ import static org.mockito.Mockito.*;
 
 
 @SpringBootTest
-public class ImageFileServiceTests {
+public class LocalFileStorageServiceTests {
 
-    private ImageFileService imageFileService;
+    private LocalFileStorageService localFileStorageService;
 
     @Mock
     private FileSystem fileSystem;
@@ -30,7 +31,8 @@ public class ImageFileServiceTests {
 
     @BeforeEach
     public void setUp() {
-        this.imageFileService = new ImageFileService(   this.fileSystem,
+        this.localFileStorageService = new LocalFileStorageService(
+                                                        this.fileSystem,
                                                         this.applicationConfigProperties);
         when(this.applicationConfigProperties.getRootFolder()).thenReturn(this.rootFolder.toString());
         when(this.fileSystem.getPath(anyString())).thenReturn(this.rootFolder);
@@ -44,7 +46,7 @@ public class ImageFileServiceTests {
             when(file.getOriginalFilename()).thenReturn("");
             Mockito.doThrow(ImageFileUploadException.class).when(this.fileSystem).copyFile(any(),any());
 
-            this.imageFileService.uploadFile("",file);
+            this.localFileStorageService.uploadFile("",file);
         });
     }
 
@@ -57,6 +59,6 @@ public class ImageFileServiceTests {
 
         when(file.getOriginalFilename()).thenReturn(fileName);
 
-        assertEquals(expectedFilePath, this.imageFileService.uploadFile(batchFolder,file));
+        this.localFileStorageService.uploadFile(batchFolder,file);
     }
 }

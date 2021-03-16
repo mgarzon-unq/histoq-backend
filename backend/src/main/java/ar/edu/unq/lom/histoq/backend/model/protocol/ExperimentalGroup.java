@@ -18,8 +18,7 @@ public class ExperimentalGroup {
     @ManyToOne
     Protocol protocol;
 
-    @OneToMany(cascade=CascadeType.ALL)
-    @JoinColumn(name="group_id")
+    @OneToMany(cascade=CascadeType.ALL,mappedBy="group")
     private List<Individual> individuals;
 
     public ExperimentalGroup(){}
@@ -28,5 +27,11 @@ public class ExperimentalGroup {
         if( this.individuals==null )
             this.individuals=new ArrayList<Individual>();
         this.individuals.add(individual);
+        individual.setGroup(this);
+    }
+
+    public void removeIndividual(Individual individual) {
+        this.individuals.remove(individual);
+        individual.setGroup(null);
     }
 }

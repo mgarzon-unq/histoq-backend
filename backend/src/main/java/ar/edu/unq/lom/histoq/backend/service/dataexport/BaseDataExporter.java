@@ -2,13 +2,13 @@ package ar.edu.unq.lom.histoq.backend.service.dataexport;
 
 import ar.edu.unq.lom.histoq.backend.service.internationalization.InternationalizationMessageService;
 import ar.edu.unq.lom.histoq.backend.service.internationalization.MessageService;
-import ar.edu.unq.lom.histoq.backend.service.context.TissueScanAppContext;
+import ar.edu.unq.lom.histoq.backend.service.context.HistoQAppContext;
 
 public abstract class BaseDataExporter implements DataExporter {
     private InternationalizationMessageService messageService;
 
     BaseDataExporter() {
-        this.messageService = TissueScanAppContext.getBean(MessageService.class);
+        this.messageService = HistoQAppContext.getBean(MessageService.class);
     }
 
     protected String getTranslation(String messageId) {

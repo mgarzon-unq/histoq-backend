@@ -6,7 +6,7 @@ import org.springframework.context.ApplicationContextAware;
 import org.springframework.stereotype.Component;
 
 @Component
-public class TissueScanAppContext implements ApplicationContextAware {
+public class HistoQAppContext implements ApplicationContextAware {
 
     private static ApplicationContext context;
 
@@ -24,6 +24,6 @@ public class TissueScanAppContext implements ApplicationContextAware {
     public void setApplicationContext(ApplicationContext context) throws BeansException {
 
         // store ApplicationContext reference to access required beans later on
-        TissueScanAppContext.context = context;
+        HistoQAppContext.context = context;
     }
 }

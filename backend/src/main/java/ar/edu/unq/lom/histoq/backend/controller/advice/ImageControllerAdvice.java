@@ -16,6 +16,8 @@ import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.multipart.MaxUploadSizeExceededException;
 
+import java.io.IOException;
+
 @ControllerAdvice
 public class ImageControllerAdvice {
 
@@ -37,6 +39,13 @@ public class ImageControllerAdvice {
     @ExceptionHandler(ImageFileDownloadException.class)
     @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)
     public String imageFileDownloadException(ImageFileDownloadException ex) {
+        return ex.getMessage();
+    }
+
+    @ResponseBody
+    @ExceptionHandler(IOException.class)
+    @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)
+    public String imageFileDownloadException(IOException ex) {
         return ex.getMessage();
     }
 
@@ -89,6 +98,5 @@ public class ImageControllerAdvice {
     public String dataExportException(UnauthorizedAccessException ex) {
         return ex.getMessage();
     }
-
 
 }

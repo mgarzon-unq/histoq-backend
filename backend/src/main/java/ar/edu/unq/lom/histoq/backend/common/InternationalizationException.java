@@ -1,6 +1,6 @@
 package ar.edu.unq.lom.histoq.backend.common;
 
-import ar.edu.unq.lom.histoq.backend.service.context.TissueScanAppContext;
+import ar.edu.unq.lom.histoq.backend.service.context.HistoQAppContext;
 import ar.edu.unq.lom.histoq.backend.service.internationalization.InternationalizationMessageService;
 import ar.edu.unq.lom.histoq.backend.service.internationalization.MessageService;
 import lombok.Data;
@@ -23,7 +23,7 @@ public class InternationalizationException extends RuntimeException {
         if( getMessageId() == null ) return null;
 
         InternationalizationMessageService service =
-                TissueScanAppContext.getBean(MessageService.class);
+                HistoQAppContext.getBean(MessageService.class);
 
         return getParameters() != null ?
                 service.getMessage(getMessageId(),getParameters()) :

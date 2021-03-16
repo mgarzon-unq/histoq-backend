@@ -1,17 +1,17 @@
 package ar.edu.unq.lom.histoq.backend.controller;
 
+import ar.edu.unq.lom.histoq.backend.common.InternationalizationException;
 import ar.edu.unq.lom.histoq.backend.controller.view.ImageBatchView;
 import ar.edu.unq.lom.histoq.backend.model.image.Image;
 import ar.edu.unq.lom.histoq.backend.model.image.ImageFile;
 import ar.edu.unq.lom.histoq.backend.service.files.FileFormat;
+import ar.edu.unq.lom.histoq.backend.service.files.exception.ImageFileDownloadException;
 import ar.edu.unq.lom.histoq.backend.service.image.ImageService;
 import ar.edu.unq.lom.histoq.backend.service.protocol.ProtocolService;
 import ar.edu.unq.lom.histoq.backend.service.securiy.SecurityService;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import org.springframework.core.io.Resource;
 import org.springframework.http.HttpHeaders;
-import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 import javax.servlet.http.HttpServletResponse;
@@ -37,7 +37,7 @@ public class ImageController {
 
     @GetMapping("/image-batches")
     public List<ImageBatchView> findAllImageBatches() {
-        return imageService.findAllImageBatches().stream().map(i -> new ImageBatchView(i))
+        return imageService.findAllImageBatches().stream().map(ImageBatchView::new)
                 .collect(Collectors.toList());
     }
 
@@ -48,7 +48,7 @@ public class ImageController {
 
     @GetMapping("/image-batches/image-files/{batchId}")
     public List<ImageFile> findAllImageFiles(@PathVariable Long batchId) {
-        return imageService.findAllImageFiles(batchId);
+        return imageService.findAllUploadedImageFiles(batchId);
     }
 
     @GetMapping("/image-batches/processing-default-parameters")
@@ -57,11 +57,19 @@ public class ImageController {
     }
 
     @GetMapping("/image-batches/image-file/{fileId}")
-    @ResponseBody
-    public ResponseEntity<Resource> downloadImageFile(@PathVariable Long fileId) {
-        Resource file = imageService.downLoadImageFile(fileId);
-        return ResponseEntity.ok()
-                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + file.getFilename() + "\"").body(file);
+    public void downloadImageFile(@PathVariable Long fileId, HttpServletResponse response) {
+        try {
+            ImageFile file = imageService.downLoadImageFile(fileId, response.getOutputStream());
+            response.setHeader(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + file.getName() + "\"");
+        }
+        catch(InternationalizationException e) {
+            throw e;
+        }
+        catch(Exception e) {
+            throw new ImageFileDownloadException("image.download-file-error",
+                    new String[]{fileId.toString(),
+                            e.getMessage()} );
+        }
     }
 
     @GetMapping("/image-batches/images/{batchId}")
@@ -70,19 +78,34 @@ public class ImageController {
     }
 
     @GetMapping("/image-batches/image/{imageId}")
-    @ResponseBody
-    public ResponseEntity<Resource> downloadImage(@PathVariable Long imageId) {
-        Resource file = imageService.downLoadImage(imageId);
-        return ResponseEntity.ok()
-                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + file.getFilename() + "\"").body(file);
+    public void downloadImage(@PathVariable Long imageId, HttpServletResponse response) {
+        try {
+            Image image = imageService.downLoadImage(imageId, response.getOutputStream());
+            response.setHeader(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + image.getName() + "\"");
+        }
+        catch(InternationalizationException e) {
+            throw e;
+        }
+        catch(Exception e) {
+            throw new ImageFileDownloadException("image.download-error",
+                    new String[]{e.getMessage()} );
+        }
     }
 
     @GetMapping({"/image-batches/image/preview/{fileId}", "/image-batches/image/preview/{fileId}/{rand}"})
     @ResponseBody
-    public ResponseEntity<Resource> downloadImagePreview(@PathVariable Long fileId) {
-        Resource file = imageService.downLoadImagePreview(fileId);
-        return ResponseEntity.ok()
-                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + file.getFilename() + "\"").body(file);
+    public void downloadImagePreview(@PathVariable Long fileId, HttpServletResponse response) {
+        try {
+            Image image = imageService.downLoadImagePreview(fileId, response.getOutputStream());
+            response.setHeader(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + image.getName() + "\"");
+        }
+        catch(InternationalizationException e) {
+            throw e;
+        }
+        catch(Exception e) {
+            throw new ImageFileDownloadException("image.download-error",
+                    new String[]{e.getMessage()} );
+        }
     }
 
     @PostMapping("/image-batches")

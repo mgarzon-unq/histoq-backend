@@ -21,6 +21,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.core.io.Resource;
 import org.springframework.web.multipart.MultipartFile;
 import javax.servlet.http.HttpServletResponse;
+import java.io.OutputStream;
 import java.io.PrintWriter;
 import java.util.*;
 
@@ -119,12 +120,12 @@ public class ImageControllerTests {
     @Test
     void downloadImageFileTest() {
         Long fileId = 1l;
-        Resource file = mock(Resource.class);
+        OutputStream outputStream = mock(OutputStream.class);
+        HttpServletResponse response = mock(HttpServletResponse.class);
 
-        when(this.imageService.downLoadImageFile(fileId)).thenReturn(file);
-        this.imageController.downloadImageFile(fileId);
+        this.imageController.downloadImageFile(fileId, response);
 
-        verify(this.imageService,times(1)).downLoadImageFile(fileId);
+        verify(this.imageService,times(1)).downLoadImageFile(fileId, outputStream);
     }
 
     @Test
@@ -141,23 +142,23 @@ public class ImageControllerTests {
     @Test
     void downloadImageTest() {
         Long imageId = 1l;
-        Resource file = mock(Resource.class);
+        OutputStream outputStream = mock(OutputStream.class);
+        HttpServletResponse response = mock(HttpServletResponse.class);
 
-        when(this.imageService.downLoadImage(imageId)).thenReturn(file);
-        this.imageController.downloadImage(imageId);
+        this.imageController.downloadImage(imageId, response);
 
-        verify(this.imageService,times(1)).downLoadImage(imageId);
+        verify(this.imageService,times(1)).downLoadImage(imageId, outputStream);
     }
 
     @Test
     void downloadImagePreviewTest() {
         Long fileId = 1l;
-        Resource file = mock(Resource.class);
+        OutputStream outputStream = mock(OutputStream.class);
+        HttpServletResponse response = mock(HttpServletResponse.class);
 
-        when(this.imageService.downLoadImagePreview(fileId)).thenReturn(file);
-        this.imageController.downloadImagePreview(fileId);
+        this.imageController.downloadImagePreview(fileId, response);
 
-        verify(this.imageService,times(1)).downLoadImagePreview(fileId);
+        verify(this.imageService,times(1)).downLoadImagePreview(fileId, outputStream);
     }
 
     @Test

@@ -20,8 +20,7 @@ public class Individual {
     ExperimentalGroup group;
 
     @JsonIgnore
-    @OneToMany(cascade=CascadeType.ALL)
-    @JoinColumn(name="individual_id")
+    @OneToMany(cascade=CascadeType.ALL,mappedBy="individual")
     private List<ImageBatch> batches = new ArrayList<ImageBatch>();
 
     public  Individual(){}

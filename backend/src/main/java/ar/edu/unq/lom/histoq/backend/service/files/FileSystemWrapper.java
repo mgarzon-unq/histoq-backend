@@ -1,17 +1,13 @@
 package ar.edu.unq.lom.histoq.backend.service.files;
 
-import org.springframework.core.io.Resource;
-import org.springframework.core.io.UrlResource;
-import org.springframework.stereotype.Component;
 import org.springframework.util.FileSystemUtils;
 import org.springframework.web.multipart.MultipartFile;
 import java.io.IOException;
-import java.net.MalformedURLException;
+import java.io.OutputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 
-@Component
 public class FileSystemWrapper implements FileSystem {
 
     @Override
@@ -30,8 +26,8 @@ public class FileSystemWrapper implements FileSystem {
     }
 
     @Override
-    public Resource getResource(Path path) throws MalformedURLException {
-        return new UrlResource(path.toUri());
+    public void getFile(Path path, OutputStream outputStream) throws IOException {
+        Files.copy(path, outputStream);
     }
 
     @Override
@@ -43,4 +39,5 @@ public class FileSystemWrapper implements FileSystem {
     public void deleteFile(Path path) {
         FileSystemUtils.deleteRecursively(path.toFile());
     }
+
 }

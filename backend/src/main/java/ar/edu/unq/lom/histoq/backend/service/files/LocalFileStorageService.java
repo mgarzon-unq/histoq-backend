@@ -5,37 +5,44 @@ import ar.edu.unq.lom.histoq.backend.service.config.ApplicationConfigProperties;
 import ar.edu.unq.lom.histoq.backend.service.files.exception.ImageFileDownloadException;
 import ar.edu.unq.lom.histoq.backend.service.files.exception.ImageFileServiceException;
 import ar.edu.unq.lom.histoq.backend.service.files.exception.ImageFileUploadException;
-import org.springframework.core.io.Resource;
-import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
-
+import java.io.OutputStream;
 import java.nio.file.FileAlreadyExistsException;
+import java.nio.file.Files;
 import java.nio.file.Path;
 
-@Service
-public class ImageFileService implements FileStorageService {
+public class LocalFileStorageService implements FileStorageService {
 
     private final FileSystem fileSystem;
     private final ApplicationConfigProperties applicationConfigProperties;
 
-    ImageFileService(FileSystem fileSystem,
-                     ApplicationConfigProperties applicationConfigProperties) {
+    LocalFileStorageService(FileSystem fileSystem,
+                            ApplicationConfigProperties applicationConfigProperties) {
         this.fileSystem = fileSystem;
         this.applicationConfigProperties = applicationConfigProperties;
     }
 
     @Override
-    public Path getRootFolder() {
-        return this.fileSystem.getPath(applicationConfigProperties.getRootFolder());
+    public boolean isLocal() {return true;}
+
+    @Override
+    public Path getFullPath(String relativePath) {
+        return getRootFolder().resolve(relativePath);
     }
 
     @Override
     public String uploadFile(String folderName, MultipartFile file) {
-        Path fileDestinationPath = null;
         try {
-            fileDestinationPath = getRootFolder().resolve(folderName+"/"+file.getOriginalFilename());
-            fileSystem.copyFile(file,fileDestinationPath);
-        } catch (FileAlreadyExistsException e) {
+            String relativePath = folderName + "/" + file.getOriginalFilename();
+
+            if( !Files.exists(getFullPath(folderName)) )
+                createFolder(folderName);
+
+            fileSystem.copyFile( file, getFullPath(relativePath));
+
+            return relativePath;
+        }
+        catch (FileAlreadyExistsException e) {
             throw new ImageFileUploadException("image.upload-file-already-exist-error",
                     new String[]{file.getOriginalFilename()});
         }
@@ -43,46 +50,36 @@ public class ImageFileService implements FileStorageService {
             throw new ImageFileUploadException("image.upload-file-error",
                             new String[]{file.getOriginalFilename(),e.getMessage()});
         }
-        return fileDestinationPath.toString();
     }
 
     @Override
-    public Resource downloadFile(String folderName, String fileName) {
+    public void downloadFile(String fileId, OutputStream outputStream) {
         try {
-            Path file = getRootFolder().resolve(folderName+"/"+fileName);
-            Resource resource = fileSystem.getResource(file);
-
-            if (resource.exists() || resource.isReadable()) {
-                return resource;
-            } else {
-                throw new ImageFileNotFoundException("image.file-not-found-error", new String[]{file.toString()});
-            }
+            fileSystem.getFile(getFullPath(fileId), outputStream);
         } catch (ImageFileNotFoundException e) {
             throw new ImageFileNotFoundException("image.download-file-error",
-                            new String[]{fileName,e.getMessage()});
+                            new String[]{fileId,e.getMessage()});
         } catch (Exception e) {
             throw new ImageFileDownloadException("image.download-file-error",
-                            new String[]{fileName,e.getMessage()});
+                            new String[]{fileId,e.getMessage()});
         }
     }
 
     @Override
-    public void deleteFolder(String folderName) {
-        fileSystem.deleteFolder(getRootFolder().resolve(folderName));
+    public void deleteFile(String fileId) {
+        fileSystem.deleteFile(getFullPath(fileId));
     }
 
-    @Override
-    public void deleteFile(String fileName) {
-        fileSystem.deleteFile(getRootFolder().resolve(fileName));
-    }
-
-    @Override
-    public void createFolder(String folderName) {
+    private void createFolder(String folderName) {
         try {
-            fileSystem.createFolder(getRootFolder().resolve(folderName));
+            fileSystem.createFolder(getFullPath(folderName));
         } catch (Exception e) {
             throw new ImageFileServiceException("image.folder-error",
                     new String[]{e.getMessage()});
         }
+    }
+
+    private Path getRootFolder() {
+        return this.fileSystem.getPath(applicationConfigProperties.getRootFolder());
     }
 }

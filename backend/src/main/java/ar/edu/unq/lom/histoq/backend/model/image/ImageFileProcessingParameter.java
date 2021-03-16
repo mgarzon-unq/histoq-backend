@@ -14,9 +14,8 @@ public class ImageFileProcessingParameter {
     private String name;
     private String value;
     @JsonIgnore
-    @ManyToOne
-    @JoinColumn(name="file_id")
-    ImageFile imageFile;
+    @ManyToOne(cascade=CascadeType.ALL)
+    private ImageFile file;
 
     public ImageFileProcessingParameter() {}
 }

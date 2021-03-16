@@ -1,6 +1,6 @@
 package ar.edu.unq.lom.histoq.backend.model.image.algorithms;
 
-import ar.edu.unq.lom.histoq.backend.service.context.TissueScanAppContext;
+import ar.edu.unq.lom.histoq.backend.service.context.HistoQAppContext;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.deser.std.StdDeserializer;
 import com.fasterxml.jackson.databind.module.SimpleModule;
@@ -20,7 +20,7 @@ public abstract class BaseAlgorithm<T> {
 
     protected T getConfig() {
         if( this.configProperties == null )
-            this.configProperties = (T) TissueScanAppContext.getBean(this.configPropertiesClass);
+            this.configProperties = (T) HistoQAppContext.getBean(this.configPropertiesClass);
         return this.configProperties;
     }
 

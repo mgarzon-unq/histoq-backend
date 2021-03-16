@@ -28,7 +28,7 @@ public class ImageBatchView {
     public ImageBatchView(ImageBatch imageBatch) {
         this.id = imageBatch.getId();
         this.date = imageBatch.getDate();
-        this.fileCount = imageBatch.getImageFiles().size();
+        this.fileCount = imageBatch.getUploadedImageFiles().size();
         this.applyStitching = imageBatch.isApplyStitching();
         this.individualId = imageBatch.getIndividual().getId();
         this.individualLabel = imageBatch.getIndividual().getLabel();

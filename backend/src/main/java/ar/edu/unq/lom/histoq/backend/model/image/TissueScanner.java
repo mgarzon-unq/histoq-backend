@@ -13,7 +13,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
-
 @Component
 public class TissueScanner implements ImageScanner {
 
@@ -79,6 +78,14 @@ public class TissueScanner implements ImageScanner {
             newImage.setTotalTissueArea(tissue.getTotalTissueArea());
             newImage.setViableTissueArea(tissue.getViableTissueArea());
             newImage.setNecroticTissueArea(tissue.getNecroticTissueArea());
+
+            ImageFile outputImageFile = new ImageFile();
+            outputImageFile.setBatch(imageFile.getBatch());
+            outputImageFile.setGenerated(true);
+            outputImageFile.setName(processedFileName);
+            outputImageFile.setImage(newImage);
+            outputImageFile.getBatch().addImageFile(outputImageFile);
+            newImage.addImageFile(outputImageFile);
 
             return newImage;
         }
