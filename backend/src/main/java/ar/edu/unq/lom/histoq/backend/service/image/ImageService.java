@@ -20,6 +20,7 @@ import org.springframework.web.multipart.MultipartFile;
 import javax.transaction.Transactional;
 import java.io.OutputStream;
 import java.io.PrintWriter;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Predicate;
@@ -224,20 +225,23 @@ public class ImageService extends BaseServiceWithSecurity {
         return this.imageScanner;
     }
 
-    private void removeImageBatchAllFilesInStorage(ImageBatch imageBath) {
-        imageBath.getImageFiles().forEach( imageFile -> {
-            removeImageFileInStorage(imageFile);
-        });
+    private void removeImageBatchAllFilesInStorage(ImageBatch imageBatch) {
+        Predicate<ImageFile> allFiles = (ImageFile file) -> true;
+        removeImageBatchMatchingFilesInStorage(imageBatch, allFiles);
     }
 
-    private void removeImageBatchGeneratedFilesInStorage(ImageBatch imageBath) {
-        removeImageBatchAnyFilesInStorage(imageBath,ImageFile::isGenerated);
+    private void removeImageBatchGeneratedFilesInStorage(ImageBatch imageBatch) {
+        removeImageBatchMatchingFilesInStorage(imageBatch,ImageFile::isGenerated);
     }
 
-    private void removeImageBatchAnyFilesInStorage(ImageBatch imageBath, Predicate<ImageFile> predicate) {
-        imageBath.getImageFiles().stream().filter(predicate).forEach( imageFile -> {
+    private void removeImageBatchMatchingFilesInStorage(ImageBatch imageBatch, Predicate<ImageFile> predicate) {
+        imageBatch.getImageFiles()
+                .stream()
+                .filter(predicate)
+                .forEach( imageFile -> {
             removeImageFileInStorage(imageFile);
         });
+        imageBatch.removeImageFiles(predicate);
     }
 
     private void removeImageFileInStorage(ImageFile imageFile) {
@@ -246,8 +250,8 @@ public class ImageService extends BaseServiceWithSecurity {
                 imageFile.getIdInStorage() );
     }
 
-    private void copyImageBatchFilesToLocalFileStorage(ImageBatch imageBath) {
-        for (ImageFile imageFile : imageBath.getImageFiles()) {
+    private void copyImageBatchFilesToLocalFileStorage(ImageBatch imageBatch) {
+        for (ImageFile imageFile : imageBatch.getImageFiles()) {
             copyImageFileToLocalFileStorage(imageFile);
         }
     }

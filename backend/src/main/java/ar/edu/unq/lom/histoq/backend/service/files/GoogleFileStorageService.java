@@ -8,6 +8,8 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.api.client.googleapis.auth.oauth2.GoogleCredential;
 import com.google.api.client.googleapis.javanet.GoogleNetHttpTransport;
+import com.google.api.client.googleapis.json.GoogleJsonResponseException;
+import com.google.api.client.http.HttpStatusCodes;
 import com.google.api.client.http.InputStreamContent;
 import com.google.api.client.http.javanet.NetHttpTransport;
 import com.google.api.client.json.JsonFactory;
@@ -90,7 +92,14 @@ public class GoogleFileStorageService implements FileStorageService {
         try {
             getDriveInstance().files().delete(fileId).execute();
         }
-        catch (Exception e) {
+        catch(GoogleJsonResponseException e) {
+            if( e.getStatusCode() == HttpStatusCodes.STATUS_CODE_NOT_FOUND )
+                return; //ignore file not found errors...
+            else
+                throw new ImageFileUploadException("image.delete-file-error",
+                        new String[]{fileId, e.getMessage()});
+        }
+        catch(Exception e) {
             throw new ImageFileUploadException("image.delete-file-error",
                     new String[]{fileId, e.getMessage()});
         }
