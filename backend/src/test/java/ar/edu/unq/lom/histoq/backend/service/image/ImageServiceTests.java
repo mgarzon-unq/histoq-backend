@@ -3,12 +3,15 @@ package ar.edu.unq.lom.histoq.backend.service.image;
 import ar.edu.unq.lom.histoq.backend.model.image.Image;
 import ar.edu.unq.lom.histoq.backend.model.image.ImageBatch;
 import ar.edu.unq.lom.histoq.backend.model.image.ImageFile;
+import ar.edu.unq.lom.histoq.backend.model.processJob.ProcessJob;
 import ar.edu.unq.lom.histoq.backend.repository.image.ImageBatchRepository;
 import ar.edu.unq.lom.histoq.backend.repository.image.ImageFileRepository;
 import ar.edu.unq.lom.histoq.backend.repository.image.ImageRepository;
+import ar.edu.unq.lom.histoq.backend.service.async.AsyncRunnerService;
 import ar.edu.unq.lom.histoq.backend.service.files.FileFormat;
 import ar.edu.unq.lom.histoq.backend.service.files.FileStorageInfo;
 import ar.edu.unq.lom.histoq.backend.service.files.FileStorageServiceManager;
+import ar.edu.unq.lom.histoq.backend.service.processJob.ProcessJobService;
 import ar.edu.unq.lom.histoq.backend.service.securiy.SecurityService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -43,6 +46,10 @@ public class ImageServiceTests {
     @Mock
     private SecurityService securityService;
     @Mock
+    private ProcessJobService processJobService;
+    @Mock
+    private AsyncRunnerService asyncRunnerService;
+    @Mock
     ImageBatch imageBatch;
     private Long batchId = 1l;
 
@@ -52,7 +59,9 @@ public class ImageServiceTests {
                 this.imageBatchRepository,
                 this.imageFileRepository,
                 this.imageRepository,
-                this.securityService);
+                this.securityService,
+                this.processJobService,
+                this.asyncRunnerService);
 
         when(this.imageBatchRepository.findById(this.batchId)).thenReturn(Optional.of(this.imageBatch));
     }
@@ -66,12 +75,10 @@ public class ImageServiceTests {
         when(this.imageBatch.getImageFiles()).thenReturn(imageFiles);
         when(imageFile.getImage()).thenReturn(image);
 
-        List<Image> images = this.imageService.processImageBatch(batchId);
+        ProcessJob processJob = this.imageService.processImageBatch(batchId);
 
         verify(this.imageBatch,times(1)).process(any());
         verify(this.imageBatchRepository,times(1)).save(this.imageBatch);
-
-        assertEquals( image, images.get(0));
     }
 
     @Test

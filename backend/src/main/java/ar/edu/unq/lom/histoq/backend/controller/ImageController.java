@@ -4,6 +4,7 @@ import ar.edu.unq.lom.histoq.backend.common.InternationalizationException;
 import ar.edu.unq.lom.histoq.backend.controller.view.ImageBatchView;
 import ar.edu.unq.lom.histoq.backend.model.image.Image;
 import ar.edu.unq.lom.histoq.backend.model.image.ImageFile;
+import ar.edu.unq.lom.histoq.backend.model.processJob.ProcessJob;
 import ar.edu.unq.lom.histoq.backend.service.files.FileFormat;
 import ar.edu.unq.lom.histoq.backend.service.files.exception.ImageFileDownloadException;
 import ar.edu.unq.lom.histoq.backend.service.image.ImageService;
@@ -134,7 +135,7 @@ public class ImageController {
     }
 
     @PostMapping("/image-batches/process/{batchId}")
-    public List<Image> processImageBatch(@PathVariable Long batchId) {
+    public ProcessJob processImageBatch(@PathVariable Long batchId) {
         return imageService.processImageBatch(batchId);
     }
 

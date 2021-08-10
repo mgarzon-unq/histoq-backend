@@ -4,6 +4,7 @@ import ar.edu.unq.lom.histoq.backend.controller.view.ImageBatchView;
 import ar.edu.unq.lom.histoq.backend.model.image.Image;
 import ar.edu.unq.lom.histoq.backend.model.image.ImageBatch;
 import ar.edu.unq.lom.histoq.backend.model.image.ImageFile;
+import ar.edu.unq.lom.histoq.backend.model.processJob.ProcessJob;
 import ar.edu.unq.lom.histoq.backend.model.protocol.ExperimentalGroup;
 import ar.edu.unq.lom.histoq.backend.model.protocol.Individual;
 import ar.edu.unq.lom.histoq.backend.model.protocol.Protocol;
@@ -206,11 +207,11 @@ public class ImageControllerTests {
     @Test
     void processImageBatchTest() {
         Long batchId = 1l;
-        List<Image> images = mock(List.class);
+        ProcessJob processJob = mock(ProcessJob.class);
 
-        when(this.imageService.processImageBatch(anyLong())).thenReturn(images);
+        when(this.imageService.processImageBatch(anyLong())).thenReturn(processJob);
 
-        assertEquals(images, this.imageController.processImageBatch(batchId) );
+        assertEquals(processJob, this.imageController.processImageBatch(batchId) );
 
         verify(this.imageService,times(1)).processImageBatch(batchId);
     }

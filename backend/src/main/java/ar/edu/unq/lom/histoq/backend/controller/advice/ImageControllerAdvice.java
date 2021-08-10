@@ -43,13 +43,6 @@ public class ImageControllerAdvice {
     }
 
     @ResponseBody
-    @ExceptionHandler(IOException.class)
-    @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)
-    public String imageFileDownloadException(IOException ex) {
-        return ex.getMessage();
-    }
-
-    @ResponseBody
     @ExceptionHandler(ImageFileNotFoundException.class)
     @ResponseStatus(HttpStatus.NOT_FOUND)
     public String imageFileNotFoundException(ImageFileNotFoundException ex) {
@@ -73,7 +66,7 @@ public class ImageControllerAdvice {
     @ResponseBody
     @ExceptionHandler(ImageScannerException.class)
     @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)
-    public String imageNotFoundException(ImageScannerException ex) {
+    public String imageScannerException(ImageScannerException ex) {
         return ex.getMessage();
     }
 
@@ -95,8 +88,14 @@ public class ImageControllerAdvice {
     @ResponseBody
     @ExceptionHandler(UnauthorizedAccessException.class)
     @ResponseStatus(HttpStatus.FORBIDDEN)
-    public String dataExportException(UnauthorizedAccessException ex) {
+    public String unauthorizedAccessException(UnauthorizedAccessException ex) {
         return ex.getMessage();
     }
 
+    @ResponseBody
+    @ExceptionHandler(IOException.class)
+    @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)
+    public String generalIOException(IOException ex) {
+        return ex.getMessage();
+    }
 }

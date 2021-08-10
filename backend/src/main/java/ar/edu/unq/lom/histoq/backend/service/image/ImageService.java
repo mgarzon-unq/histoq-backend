@@ -1,26 +1,28 @@
 package ar.edu.unq.lom.histoq.backend.service.image;
 
 import ar.edu.unq.lom.histoq.backend.model.image.*;
+import ar.edu.unq.lom.histoq.backend.model.processJob.ProcessJob;
 import ar.edu.unq.lom.histoq.backend.repository.image.ImageBatchRepository;
 import ar.edu.unq.lom.histoq.backend.repository.image.ImageFileRepository;
 import ar.edu.unq.lom.histoq.backend.repository.image.ImageRepository;
 import ar.edu.unq.lom.histoq.backend.repository.image.exception.ImageBatchNotFoundException;
 import ar.edu.unq.lom.histoq.backend.repository.image.exception.ImageFileNotFoundException;
 import ar.edu.unq.lom.histoq.backend.repository.image.exception.ImageNotFoundException;
+import ar.edu.unq.lom.histoq.backend.service.async.AsyncRunnerService;
 import ar.edu.unq.lom.histoq.backend.service.context.HistoQAppContext;
 import ar.edu.unq.lom.histoq.backend.service.dataexport.DataExporter;
 import ar.edu.unq.lom.histoq.backend.service.dataexport.DataExporterFactory;
 import ar.edu.unq.lom.histoq.backend.service.files.FileStorageInfo;
 import ar.edu.unq.lom.histoq.backend.service.files.FileStorageServiceManager;
+import ar.edu.unq.lom.histoq.backend.service.processJob.ProcessJobService;
 import ar.edu.unq.lom.histoq.backend.service.securiy.BaseServiceWithSecurity;
 import ar.edu.unq.lom.histoq.backend.service.securiy.SecurityService;
 import ar.edu.unq.lom.histoq.backend.service.files.FileFormat;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
-import javax.transaction.Transactional;
 import java.io.OutputStream;
 import java.io.PrintWriter;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Predicate;
@@ -33,18 +35,24 @@ public class ImageService extends BaseServiceWithSecurity {
     private final ImageBatchRepository imageBatchRepository;
     private final ImageRepository imageRepository;
     private final ImageFileRepository imageFileRepository;
+    private final ProcessJobService processJobService;
+    private final AsyncRunnerService asyncRunnerService;
     private ImageScanner imageScanner;
 
     ImageService(FileStorageServiceManager fileStorageServiceManager,
                  ImageBatchRepository imageBatchRepository,
                  ImageFileRepository imageFileRepository,
                  ImageRepository imageRepository,
-                 SecurityService securityService) {
+                 SecurityService securityService,
+                 ProcessJobService processJobService,
+                 AsyncRunnerService asyncRunnerService) {
         super(securityService);
         this.fileStorageServiceManager = fileStorageServiceManager;
         this.imageBatchRepository = imageBatchRepository;
         this.imageFileRepository = imageFileRepository;
         this.imageRepository = imageRepository;
+        this.processJobService = processJobService;
+        this.asyncRunnerService = asyncRunnerService;
     }
 
     public ImageBatch findImageBatchById(Long id) {
@@ -144,23 +152,16 @@ public class ImageService extends BaseServiceWithSecurity {
         return image;
     }
 
-    @Transactional
-    public List<Image> processImageBatch(Long batchId) {
+    public ProcessJob processImageBatch(Long batchId) {
         userAccessControl(null);
 
         ImageBatch imageBatch = findImageBatchById(batchId);
 
-        removeImageBatchGeneratedFilesInStorage(imageBatch);
+        ProcessJob processJob = this.processJobService.createProcessJob(getMessage("batch-process-goal"));
 
-        copyImageBatchFilesToLocalFileStorage(imageBatch);
+        asyncRun(() -> this.processImageBatchAsync(imageBatch.getId(), processJob.getId()));
 
-        imageBatch.process(getImageScanner());
-
-        sendToFileStorageImageBatchGeneratedFile(imageBatch);
-
-        this.imageBatchRepository.save(imageBatch);
-
-        return findAllImages(batchId);
+        return processJob;
     }
 
     public List<FileFormat> findSupportedDataExportFileFormats() {
@@ -218,6 +219,48 @@ public class ImageService extends BaseServiceWithSecurity {
     public Map<String,String> findAllDefaultProcessingParameters() {
         userAccessControl(null);
         return getImageScanner().getDefaultProcessingParameters();
+    }
+
+    protected void processImageBatchAsync(Long imageBathId, Long processJobId)
+    {
+        ProcessJob subProcess = null;
+        ProcessJob processJob = null;
+
+        try {
+            ImageBatch imageBatch = findImageBatchById(imageBathId);
+            processJob = this.processJobService.findProcessJobById(processJobId);
+
+            subProcess = processJobService.addSubProcessToJob(processJob, getMessage("batch-process-step-remove-generated-files") );
+            removeImageBatchGeneratedFilesInStorage(imageBatch);
+            processJobService.processJobFinishedSuccessfully(subProcess);
+
+            subProcess = processJobService.addSubProcessToJob(processJob, getMessage("batch-process-step-copy-remote-files-to-local-storage") );
+            copyImageBatchFilesToLocalFileStorage(imageBatch);
+            processJobService.processJobFinishedSuccessfully(subProcess);
+
+            subProcess = processJobService.addSubProcessToJob(processJob, getMessage("batch-process-step-processing-files") );
+            imageBatch.process(getImageScanner());
+            processJobService.processJobFinishedSuccessfully(subProcess);
+
+            subProcess = processJobService.addSubProcessToJob(processJob, getMessage("batch-process-step-sending-generated-files-to-remote-storage") );
+            sendToFileStorageImageBatchGeneratedFile(imageBatch);
+            processJobService.processJobFinishedSuccessfully(subProcess);
+
+            subProcess = processJobService.addSubProcessToJob(processJob, getMessage("batch-process-step-saving-image-batch-status") );
+            imageBatchRepository.save(imageBatch);
+            Thread.sleep(3000);
+            processJobService.processJobFinishedSuccessfully(subProcess);
+
+            processJobService.processJobFinishedSuccessfully(processJob);
+        }
+        catch(Exception e)
+        {
+            if( subProcess != null )
+                processJobService.processJobFinishedWithErrors(subProcess, e.getMessage());
+
+            if( processJob != null )
+                processJobService.processJobFinishedWithErrors(processJob, e.getMessage());
+        }
     }
 
     private ImageScanner getImageScanner() {
