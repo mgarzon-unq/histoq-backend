@@ -5,20 +5,30 @@ import ar.edu.unq.lom.histoq.backend.model.image.algorithms.exception.AlgorithmE
 import ar.edu.unq.lom.histoq.backend.service.config.algorithms.embedded.EmbeddedScaleReferenceDetectionAlgorithmConfig;
 import ar.edu.unq.lom.histoq.backend.model.image.algorithms.BaseAlgorithm;
 import ar.edu.unq.lom.histoq.backend.model.image.algorithms.ScaleReferenceDetectionAlgorithm;
+import com.sun.jna.Pointer;
+import com.sun.jna.StringArray;
+import com.sun.jna.ptr.PointerByReference;
 import net.sourceforge.tess4j.ITessAPI;
+import net.sourceforge.tess4j.TessAPI;
 import net.sourceforge.tess4j.Tesseract;
 import net.sourceforge.tess4j.Word;
+import net.sourceforge.tess4j.util.ImageIOHelper;
 import org.opencv.core.*;
 import org.opencv.core.Point;
 import org.opencv.imgcodecs.Imgcodecs;
 import org.opencv.imgproc.Imgproc;
 import org.springframework.util.CollectionUtils;
 import javax.imageio.ImageIO;
+import javax.validation.constraints.Null;
 import java.awt.*;
 import java.awt.image.BufferedImage;
+import java.awt.image.DataBuffer;
+import java.awt.image.DataBufferByte;
+import java.awt.image.RenderedImage;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -61,7 +71,23 @@ public class EmbeddedScaleReferenceDetectionAlgorithm extends BaseAlgorithm<Embe
 
         // send image to Tesseract...
         try {
-            List<Word> textLines = tesseract.getWords(mat2BufferedImage(imageWithThreshold), ITessAPI.TessPageIteratorLevel.RIL_TEXTLINE);
+
+            // PATCH to prevent Tesseract.getWords() internal NullPointerException that (for some reason) cant be caught by the try-catch block...
+            TesseractHelper tessHelper = new TesseractHelper(getConfig().getTesseractDataPath(),
+                    getConfig().getTesseractLanguage(),
+                    getConfig().getTesseractOcrEngineMode(),
+                    getConfig().getTesseractPageSegmentationMode());
+
+            BufferedImage bufferedImage = mat2BufferedImage(imageWithThreshold);
+            boolean tesseractWillFail = tessHelper.getWordsWillFail(bufferedImage, ITessAPI.TessPageIteratorLevel.RIL_TEXTLINE);
+
+            List<Word> textLines = !tesseractWillFail ?
+                    tesseract.getWords(bufferedImage, ITessAPI.TessPageIteratorLevel.RIL_TEXTLINE) :
+                    null;
+            //List<Word> textLines = tesseract.getWords(bufferedImage, ITessAPI.TessPageIteratorLevel.RIL_TEXTLINE);
+
+            // PATCH END
+
             // process detected text lines...
             if( !CollectionUtils.isEmpty(textLines) ) {
                 textLines.stream()
@@ -183,5 +209,7 @@ public class EmbeddedScaleReferenceDetectionAlgorithm extends BaseAlgorithm<Embe
     private String cleanTextLine(String textLine) {
         return textLine.trim().replaceAll("\\n","");
     }
+
+
 
 }

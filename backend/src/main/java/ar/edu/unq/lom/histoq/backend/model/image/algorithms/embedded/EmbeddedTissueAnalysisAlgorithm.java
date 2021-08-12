@@ -170,7 +170,7 @@ public class EmbeddedTissueAnalysisAlgorithm extends BaseAlgorithm<EmbeddedTissu
         Mat viableTissueAreaHierarchy               = tissue.getViableTissueAreaContoursHierarchy();
         int currentViableTissueContourIndex         = Math.min(0,viableTissueAreaHierarchy.cols()-1);
         final int mainContourIndex                  = ImageContourUtils.getMainContourIndex(viableTissueAreaContours,viableTissueAreaHierarchy);
-        final Double mainContourArea                = ImageContourUtils.getContourArea(viableTissueAreaContours.get(mainContourIndex));
+        final Double mainContourArea                = mainContourIndex != ImageContourUtils.UNDEFINED_INDEX ? ImageContourUtils.getContourArea(viableTissueAreaContours.get(mainContourIndex)) : 0.0;
         Mat contourMask                             = tissue.getTotalTissueAreaMask().clone();
         Mat summaryUnenclosedChildrenMask           = Mat.zeros(tissue.getTotalTissueAreaMask().size(),tissue.getTotalTissueAreaMask().type());
         Mat hullMask                                = new Mat(tissue.getTotalTissueAreaMask().size(),tissue.getTotalTissueAreaMask().type());
